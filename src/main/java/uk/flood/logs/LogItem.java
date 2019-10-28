@@ -1,3 +1,5 @@
+package uk.flood.logs;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;

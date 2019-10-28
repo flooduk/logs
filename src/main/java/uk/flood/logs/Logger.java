@@ -1,29 +1,39 @@
+package uk.flood.logs;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Date;
 
 @SuppressWarnings({"unused", "ResultOfMethodCallIgnored", "Convert2Lambda"})
 public final class Logger extends Thread {
 
     private final long maxFileSize;
     private final int maxFilesCount;
-    private final File file;
+    private final String path;
+    private final String fileName;
+    private final String fileExt;
     private final AtomicLock fl = new AtomicLock();
     private final ArrayList<LogItem> items1 = new ArrayList<>(1024);
     private final ArrayList<LogItem> items2 = new ArrayList<>(1024);
-    private ArrayList<LogItem> write = items1;
-    private ArrayList<LogItem> read = items2;
-    private boolean ran = true;
+    private volatile ArrayList<LogItem> write = items1;
+    private volatile ArrayList<LogItem> read = items2;
+    private volatile boolean ran = true;
+    private final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+    private File currentFile = null;
 
-    private Logger(long maxFileSize, int maxFilesCount, File file) {
+    private Logger(long maxFileSize, int maxFilesCount, String path, String fileName, String fileExt) {
         super();
         this.maxFileSize = maxFileSize;
         this.maxFilesCount = maxFilesCount;
-        this.file = file;
+        this.path = path;
+        this.fileName = fileName;
+        this.fileExt = fileExt;
         setDaemon(true);
         setName("LogThread");
         setPriority(Thread.MIN_PRIORITY);
@@ -34,9 +44,9 @@ public final class Logger extends Thread {
      * Возвращает новый логгер
      *
      * @param maxFileSizeMB - максимальный размер файла с логами (1..1024)
-     * @param maxFilesCount - максимальное количество файлов (1..10)
+     * @param maxFilesCount - максимальное количество файлов (2..100)
      * @param file          - объект файла с логами, не может быть null
-     * @return Logger или выбрасывает IllegalArgumentException
+     * @return uk.flood.logs.Logger или выбрасывает IllegalArgumentException
      * @throws IllegalArgumentException - если входные параметры не удовлетворяют условиям
      */
     public static Logger createLogger(
@@ -47,13 +57,24 @@ public final class Logger extends Thread {
         if (maxFileSizeMB < 1 || maxFileSizeMB > 1024) {
             throw new IllegalArgumentException("maxFileSizeMB must be in 1..1024");
         }
-        if (maxFilesCount < 1 || maxFilesCount > 10) {
-            throw new IllegalArgumentException("maxFilesCount must be in 1..10");
+        if (maxFilesCount < 2 || maxFilesCount > 100) {
+            throw new IllegalArgumentException("maxFilesCount must be in 2..100");
         }
         if (file == null) {
             throw new IllegalArgumentException("file must not be null");
         }
-        return new Logger((long) maxFileSizeMB * 1024L * 1024L, maxFilesCount, file);
+
+        String path = file.getAbsolutePath();
+        int last = path.lastIndexOf('.');
+        if (last == -1) {
+            throw new IllegalArgumentException("file must be with extension");
+        }
+        int lastSeparator = path.lastIndexOf(File.separatorChar);
+        String filePath = path.substring(0, lastSeparator);
+        String fileName = path.substring(filePath.length()+1, last);
+        String fileExt = path.substring(last);
+        return new Logger((long) maxFileSizeMB * 1024L * 1024L,
+                maxFilesCount, filePath, fileName, fileExt);
     }
 
     public void log(String tag, String value) {
@@ -74,18 +95,19 @@ public final class Logger extends Thread {
         while (ran) {
             swap();
             try {
-                File f = ensure(file);
+                File f = ensure(getCurrentFile());
                 if (f.length() > maxFileSize) {
-                    f = rename(file, maxFilesCount);
+                    f = rename(getCurrentFile(), maxFilesCount);
+                    Thread.sleep(100);
                 }
-                try (FileOutputStream fos = new FileOutputStream(f, true)) {
+                try (FileOutputStream fos = new FileOutputStream(ensure(f), true)) {
                     for (LogItem li : read) {
                         fos.write(li.toString().getBytes());
                     }
                 }
                 read.clear();
                 Thread.sleep(100);
-            } catch (IOException | InterruptedException e) {
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         }
@@ -113,6 +135,13 @@ public final class Logger extends Thread {
         return file;
     }
 
+    private File getCurrentFile() {
+        if (currentFile == null) {
+            currentFile = new File(path + File.separator + fileName + "." + df.format(new Date()) + fileExt);
+        }
+        return currentFile;
+    }
+
     private File rename(File file, int maxFilesCount) throws IOException {
         // rename file
         String filename = file.getAbsolutePath();
@@ -120,7 +149,7 @@ public final class Logger extends Thread {
         File[] files = dir.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File file1, String s) {
-                return s.startsWith(file.getName());
+                return s.startsWith(fileName.substring(fileName.lastIndexOf(File.separator) + 1));
             }
         });
         if (files != null && files.length > maxFilesCount) {
@@ -132,8 +161,8 @@ public final class Logger extends Thread {
             });
             files[0].delete();
         }
-        file.renameTo(new File(file.getAbsolutePath() + "." + System.currentTimeMillis()));
-        return ensure(new File(filename));
+        currentFile = null;
+        return ensure(getCurrentFile());
     }
 
 

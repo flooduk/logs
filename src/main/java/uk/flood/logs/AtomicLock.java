@@ -1,3 +1,5 @@
+package uk.flood.logs;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class AtomicLock extends AtomicBoolean {
