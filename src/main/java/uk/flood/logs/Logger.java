@@ -86,6 +86,15 @@ public final class Logger extends Thread {
         }
     }
 
+    public void slog(String value) {
+        fl.lock();
+        try {
+            write.add(new ShortLogItem("", value));
+        } finally {
+            fl.unlock();
+        }
+    }
+
     public void finish() {
         ran = false;
     }

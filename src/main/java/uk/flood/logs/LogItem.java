@@ -4,14 +4,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-final class LogItem {
+class LogItem {
     private final static SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
-    private final static Date dt = new Date(0);
+    final static Date dt = new Date(0);
 
-    private final String value;
+    final String value;
     private final String level;
     private final long threadTag = Thread.currentThread().getId();
-    private final long time = System.currentTimeMillis();
+    final long time = System.currentTimeMillis();
 
     LogItem(String level, String value) {
         this.level = level;
