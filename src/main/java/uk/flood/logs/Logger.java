@@ -1,5 +1,7 @@
 package uk.flood.logs;
 
+import sun.rmi.runtime.Log;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
@@ -26,14 +28,17 @@ public final class Logger extends Thread {
     private volatile boolean ran = true;
     private final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
     private File currentFile = null;
+    private final LoggerAndroidCallback loggerAndroidCallback;
 
-    private Logger(long maxFileSize, int maxFilesCount, String path, String fileName, String fileExt) {
+    private Logger(long maxFileSize, int maxFilesCount, String path, String fileName, String fileExt,
+                   LoggerAndroidCallback loggerAndroidCallback) {
         super();
         this.maxFileSize = maxFileSize;
         this.maxFilesCount = maxFilesCount;
         this.path = path;
         this.fileName = fileName;
         this.fileExt = fileExt;
+        this.loggerAndroidCallback = loggerAndroidCallback;
         setDaemon(true);
         setName("LogThread");
         setPriority(Thread.MIN_PRIORITY);
@@ -52,7 +57,8 @@ public final class Logger extends Thread {
     public static Logger createLogger(
             int maxFileSizeMB,
             int maxFilesCount,
-            File file
+            File file,
+            LoggerAndroidCallback loggerAndroidCallback
     ) {
         if (maxFileSizeMB < 1 || maxFileSizeMB > 1024) {
             throw new IllegalArgumentException("maxFileSizeMB must be in 1..1024");
@@ -74,7 +80,7 @@ public final class Logger extends Thread {
         String fileName = path.substring(filePath.length() + 1, last);
         String fileExt = path.substring(last);
         return new Logger((long) maxFileSizeMB * 1024L * 1024L,
-                maxFilesCount, filePath, fileName, fileExt);
+                maxFilesCount, filePath, fileName, fileExt, loggerAndroidCallback);
     }
 
     public void log(String tag, String value) {
@@ -114,7 +120,7 @@ public final class Logger extends Thread {
                     f = startNewFile(getCurrentFile(), maxFilesCount);
                     Thread.sleep(100);
                 }
-                try (FileOutputStream fos = new FileOutputStream(ensure(f), true)) {
+                try (FileOutputStream fos = loggerAndroidCallback.open(ensure(f), true)) {
                     for (LogItem li : read) {
                         fos.write(li.toString().getBytes());
                     }
@@ -144,7 +150,7 @@ public final class Logger extends Thread {
 
     private File ensure(File file) throws IOException {
         if (!file.exists()) {
-            file.createNewFile();
+            loggerAndroidCallback.create(file);
         }
         return file;
     }
@@ -172,7 +178,7 @@ public final class Logger extends Thread {
                 }
             });
             for (int i = 0; i < files.length - maxFilesCount; i++) {
-                files[i].delete();
+                loggerAndroidCallback.remove(files[i]);
             }
         }
 
