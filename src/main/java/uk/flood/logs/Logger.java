@@ -71,7 +71,7 @@ public final class Logger extends Thread {
         }
         int lastSeparator = path.lastIndexOf(File.separatorChar);
         String filePath = path.substring(0, lastSeparator);
-        String fileName = path.substring(filePath.length()+1, last);
+        String fileName = path.substring(filePath.length() + 1, last);
         String fileExt = path.substring(last);
         return new Logger((long) maxFileSizeMB * 1024L * 1024L,
                 maxFilesCount, filePath, fileName, fileExt);
@@ -101,12 +101,17 @@ public final class Logger extends Thread {
 
     @Override
     public void run() {
+        try {
+            removeFiles(ensure(getCurrentFile()), maxFilesCount);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
         while (ran) {
             swap();
             try {
                 File f = ensure(getCurrentFile());
                 if (f.length() > maxFileSize) {
-                    f = rename(getCurrentFile(), maxFilesCount);
+                    f = startNewFile(getCurrentFile(), maxFilesCount);
                     Thread.sleep(100);
                 }
                 try (FileOutputStream fos = new FileOutputStream(ensure(f), true)) {
@@ -151,9 +156,7 @@ public final class Logger extends Thread {
         return currentFile;
     }
 
-    private File rename(File file, int maxFilesCount) throws IOException {
-        // rename file
-        String filename = file.getAbsolutePath();
+    private void removeFiles(File file, int maxFilesCount) {
         File dir = file.getParentFile();
         File[] files = dir.listFiles(new FilenameFilter() {
             @Override
@@ -168,8 +171,15 @@ public final class Logger extends Thread {
                     return file.getName().compareTo(t1.getName());
                 }
             });
-            files[0].delete();
+            for (int i = 0; i < files.length - maxFilesCount; i++) {
+                files[i].delete();
+            }
         }
+
+    }
+
+    private File startNewFile(File file, int maxFilesCount) throws IOException {
+        removeFiles(file, maxFilesCount);
         currentFile = null;
         return ensure(getCurrentFile());
     }
