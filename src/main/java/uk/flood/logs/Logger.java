@@ -1,9 +1,6 @@
 package uk.flood.logs;
 
-import sun.rmi.runtime.Log;
-
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStream;
