@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -120,9 +121,14 @@ public final class Logger extends Thread {
                     f = startNewFile(getCurrentFile(), maxFilesCount);
                     Thread.sleep(100);
                 }
-                try (FileOutputStream fos = loggerAndroidCallback.open(ensure(f), true)) {
-                    for (LogItem li : read) {
-                        fos.write(li.toString().getBytes());
+                OutputStream fos = loggerAndroidCallback.open(ensure(f), true);
+                if (fos != null) {
+                    try {
+                        for (LogItem li : read) {
+                            fos.write(li.toString().getBytes());
+                        }
+                    } finally {
+                        fos.close();
                     }
                 }
                 read.clear();
