@@ -116,7 +116,7 @@ public final class Logger extends Thread {
                 File f = ensure(getCurrentFile());
                 if (f.length() > maxFileSize) {
                     f = startNewFile(getCurrentFile(), maxFilesCount);
-                    Thread.sleep(100);
+                    Thread.sleep(1000);
                 }
                 OutputStream fos = loggerAndroidCallback.open(ensure(f), true);
                 if (fos != null) {
@@ -129,7 +129,7 @@ public final class Logger extends Thread {
                     }
                 }
                 read.clear();
-                Thread.sleep(100);
+                Thread.sleep(1000);
             } catch (Throwable e) {
                 e.printStackTrace();
             }
