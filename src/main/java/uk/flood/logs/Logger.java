@@ -129,10 +129,10 @@ public final class Logger extends Thread {
                     }
                 }
                 read.clear();
-                Thread.sleep(1000);
             } catch (Throwable e) {
                 e.printStackTrace();
             }
+            Thread.sleep(1000);
         }
     }
 
