@@ -1,12 +1,10 @@
 package uk.flood.logs;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 
@@ -171,21 +169,26 @@ public final class Logger extends Thread {
 
     private void removeFiles(File file, int maxFilesCount) {
         File dir = file.getParentFile();
-        File[] files = dir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File file1, String s) {
-                return s.startsWith(fileName.substring(fileName.lastIndexOf(File.separator) + 1));
+        File[] tmpFiles = loggerAndroidCallback.listFiles(dir);
+        if (tmpFiles == null) {
+            return;
+        }
+        ArrayList<File> files = new ArrayList<File>(tmpFiles.length);
+        for (File f : tmpFiles) {
+            if (f.getName().startsWith(fileName.substring(fileName.lastIndexOf(File.separator) + 1))) {
+                files.add(f);
             }
-        });
-        if (files != null && files.length > maxFilesCount) {
-            Arrays.sort(files, new Comparator<File>() {
+        }
+
+        if (files.size() > maxFilesCount) {
+            files.sort(new Comparator<File>() {
                 @Override
                 public int compare(File file, File t1) {
                     return file.getName().compareTo(t1.getName());
                 }
             });
-            for (int i = 0; i < files.length - maxFilesCount; i++) {
-                loggerAndroidCallback.remove(files[i]);
+            for (int i = 0; i < files.size() - maxFilesCount; i++) {
+                loggerAndroidCallback.remove(files.get(i));
             }
         }
 

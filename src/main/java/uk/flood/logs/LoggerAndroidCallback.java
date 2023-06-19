@@ -13,4 +13,6 @@ public interface LoggerAndroidCallback {
 
     void remove(File file);
 
+    File[] listFiles(File file);
+
 }

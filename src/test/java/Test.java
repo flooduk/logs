@@ -25,6 +25,11 @@ public class Test {
             public void remove(File file) {
                 file.delete();
             }
+
+            @Override
+            public File[] listFiles(File file) {
+                return file.listFiles();
+            }
         });
 
         for (int k = 0; k < 1000; k++) {
